@@ -1,0 +1,92 @@
+\documentclass[11pt,letterpaper]{article}
+
+\usepackage[empty]{fullpage}
+\usepackage{geometry}
+\usepackage{titlesec}
+\usepackage{enumitem}
+\usepackage[hidelinks]{hyperref}
+\usepackage{fancyhdr}
+\usepackage{xcolor}
+
+\geometry{left=0.75in, right=0.75in, top=0.6in, bottom=0.6in}
+\pagestyle{fancy}
+\fancyhf{}
+\renewcommand{\headrulewidth}{0pt}
+
+% Minimal color palette
+\definecolor{heading}{HTML}{1a1a1a}
+\definecolor{subheading}{HTML}{444444}
+\definecolor{body}{HTML}{555555}
+\definecolor{rule}{HTML}{cccccc}
+
+% Section formatting - ultra minimal
+\titleformat{\section}{\normalsize\bfseries\uppercase\color{heading}}{}{0em}{}[\vspace{-2pt}{\color{rule}\hrule height 0.4pt}\vspace{-4pt}]
+\titlespacing*{\section}{0pt}{10pt}{5pt}
+
+\color{body}
+\setlength{\parindent}{0pt}
+
+\begin{document}
+
+% ---------- HEADER ----------
+\begin{center}
+  {\LARGE\bfseries\color{heading} Sarah Johnson} \\[5pt]
+  {\small
+    sarah.johnson@email.com \enspace$\cdot$\enspace
+    (555) 345-6789 \enspace$\cdot$\enspace
+    Austin, TX \enspace$\cdot$\enspace
+    \href{https://linkedin.com/in/sarahjohnson}{LinkedIn} \enspace$\cdot$\enspace
+    \href{https://github.com/sarahjohnson}{GitHub}
+  }
+\end{center}
+\vspace{-2pt}
+
+% ---------- EXPERIENCE ----------
+\section{Experience}
+
+\textbf{\color{heading}Product Manager} \hfill {\small Jul 2022 -- Present} \\
+{\color{subheading}\textit{Apple}} \hfill {\small\color{subheading} Cupertino, CA}
+\begin{itemize}[leftmargin=1.2em, topsep=2pt, itemsep=0pt, parsep=1pt]
+  \item Owned product roadmap for iCloud storage features serving 900M+ users across 5 platforms
+  \item Drove 23\% increase in premium tier conversion through data-informed pricing experiments
+  \item Collaborated with 3 engineering teams and design to ship 2 major feature releases per quarter
+  \item Established OKR framework adopted by 4 product teams, improving goal alignment by 40\%
+\end{itemize}
+\vspace{4pt}
+
+\textbf{\color{heading}Associate Product Manager} \hfill {\small Aug 2020 -- Jun 2022} \\
+{\color{subheading}\textit{Microsoft}} \hfill {\small\color{subheading} Redmond, WA}
+\begin{itemize}[leftmargin=1.2em, topsep=2pt, itemsep=0pt, parsep=1pt]
+  \item Launched Teams meeting transcription feature to 250M+ monthly active users
+  \item Reduced customer-reported bugs by 35\% through systematic triage and prioritization process
+  \item Conducted 50+ user interviews to identify pain points driving the next product iteration
+\end{itemize}
+\vspace{4pt}
+
+\textbf{\color{heading}Business Analyst Intern} \hfill {\small Jun 2019 -- Aug 2019} \\
+{\color{subheading}\textit{McKinsey \& Company}} \hfill {\small\color{subheading} New York, NY}
+\begin{itemize}[leftmargin=1.2em, topsep=2pt, itemsep=0pt, parsep=1pt]
+  \item Supported due diligence for \$500M acquisition in fintech sector
+  \item Built financial models and market sizing analyses for 3 client engagements
+\end{itemize}
+
+% ---------- EDUCATION ----------
+\section{Education}
+
+\textbf{\color{heading}MBA} \hfill {\small 2018 -- 2020} \\
+{\color{subheading}\textit{Wharton School, University of Pennsylvania}} \hfill {\small\color{subheading} Philadelphia, PA} \\
+{\small Concentration in Technology Management $|$ GMAT: 760}
+\vspace{4pt}
+
+\textbf{\color{heading}B.A. Economics} \hfill {\small 2014 -- 2018} \\
+{\color{subheading}\textit{Yale University}} \hfill {\small\color{subheading} New Haven, CT} \\
+{\small Magna Cum Laude $|$ Phi Beta Kappa}
+
+% ---------- SKILLS ----------
+\section{Skills}
+
+\textbf{\color{heading}Product:} Roadmapping, A/B Testing, User Research, Agile/Scrum, SQL, Jira, Figma \\[2pt]
+\textbf{\color{heading}Technical:} Python, SQL, Tableau, Amplitude, Mixpanel, Google Analytics \\[2pt]
+\textbf{\color{heading}Other:} Public Speaking, Cross-functional Leadership, Strategic Planning
+
+\end{document}

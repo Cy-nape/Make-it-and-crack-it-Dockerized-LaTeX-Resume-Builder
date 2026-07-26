@@ -1,0 +1,62 @@
+\documentclass[11pt,a4paper]{moderncv}
+
+\moderncvstyle{classic}
+\moderncvcolor{blue}
+
+\usepackage[scale=0.82]{geometry}
+\usepackage[utf8]{inputenc}
+
+% Personal data
+\name{Michael}{Chen}
+\title{Data Scientist}
+\address{456 Oak Avenue}{Chicago, IL 60601}
+\phone[mobile]{(555) 234-5678}
+\email{michael.chen@email.com}
+\social[linkedin]{michaelchen}
+\social[github]{mchen-ds}
+
+\begin{document}
+
+\makecvtitle
+
+\section{Professional Summary}
+Data Scientist with 5+ years of experience in machine learning, statistical modeling, and data-driven product development. Expertise in NLP, computer vision, and recommendation systems. Published researcher with a passion for translating complex data into actionable business insights.
+
+\section{Experience}
+
+\cventry{2022--Present}{Senior Data Scientist}{Netflix}{Los Gatos, CA}{}{
+\begin{itemize}
+  \item Developed personalization algorithms improving content recommendation CTR by 18\%
+  \item Built real-time A/B testing framework processing 200M+ events daily using Spark Streaming
+  \item Led cross-functional team of 5 to ship ML-powered search ranking model
+  \item Reduced model inference latency by 65\% through quantization and ONNX optimization
+\end{itemize}}
+
+\cventry{2020--2022}{Data Scientist}{Uber}{San Francisco, CA}{}{
+\begin{itemize}
+  \item Designed surge pricing model using gradient boosted trees, increasing revenue by 12\%
+  \item Built NLP pipeline for driver support ticket classification with 94\% accuracy
+  \item Created anomaly detection system identifying fraudulent trips, saving \$2M annually
+\end{itemize}}
+
+\cventry{2019--2020}{ML Engineer Intern}{IBM Research}{Yorktown Heights, NY}{}{
+\begin{itemize}
+  \item Implemented transformer-based text summarization model for enterprise document processing
+  \item Published research paper at ACL 2020 on few-shot learning for domain adaptation
+\end{itemize}}
+
+\section{Education}
+\cventry{2017--2019}{M.S. Computer Science (Machine Learning)}{Carnegie Mellon University}{Pittsburgh, PA}{}{\textit{GPA: 3.92/4.0}}
+\cventry{2013--2017}{B.S. Mathematics \& Statistics}{University of Michigan}{Ann Arbor, MI}{}{\textit{Summa Cum Laude}}
+
+\section{Technical Skills}
+\cvitem{Languages}{Python, R, Scala, SQL, Julia}
+\cvitem{ML/AI}{PyTorch, TensorFlow, scikit-learn, XGBoost, Hugging Face, LangChain}
+\cvitem{Data}{Spark, Kafka, Airflow, dbt, BigQuery, Snowflake, Databricks}
+\cvitem{Tools}{Docker, Kubernetes, MLflow, Weights \& Biases, Git, AWS SageMaker}
+
+\section{Publications}
+\cvitem{ACL 2020}{\textit{Few-Shot Domain Adaptation for Document Summarization}, M. Chen et al.}
+\cvitem{NeurIPS 2022}{\textit{Efficient Recommendation via Sparse Mixture of Experts}, M. Chen et al.}
+
+\end{document}

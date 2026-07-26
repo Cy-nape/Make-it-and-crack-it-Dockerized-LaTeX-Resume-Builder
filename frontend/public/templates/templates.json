@@ -1,0 +1,42 @@
+[
+  {
+    "id": "deedy",
+    "name": "Deedy Resume",
+    "description": "Clean, technical resume inspired by the popular Deedy template. Great for software engineers and developers.",
+    "file": "/templates/deedy.tex",
+    "tags": ["Technical", "Developer", "ATS-Friendly"],
+    "icon": "💻"
+  },
+  {
+    "id": "awesome-cv",
+    "name": "Awesome CV",
+    "description": "Modern, colorful resume with a bold header and clean sections. Perfect for standing out while staying professional.",
+    "file": "/templates/awesome-cv.tex",
+    "tags": ["Modern", "Colorful", "Full Stack"],
+    "icon": "🎨"
+  },
+  {
+    "id": "moderncv-classic",
+    "name": "ModernCV Classic",
+    "description": "Traditional academic/professional style using the ModernCV LaTeX class. Ideal for researchers and data scientists.",
+    "file": "/templates/moderncv-classic.tex",
+    "tags": ["Academic", "Research", "Data Science"],
+    "icon": "🎓"
+  },
+  {
+    "id": "minimalist",
+    "name": "Minimalist",
+    "description": "Ultra-clean single-column layout with minimal styling. Lets your content speak for itself. Great for product and business roles.",
+    "file": "/templates/minimalist.tex",
+    "tags": ["Minimal", "Clean", "Business"],
+    "icon": "✨"
+  },
+  {
+    "id": "two-column",
+    "name": "Two Column Pro",
+    "description": "Dense two-column layout that packs maximum information. Perfect for experienced professionals with lots to showcase.",
+    "file": "/templates/two-column.tex",
+    "tags": ["Two-Column", "Dense", "DevOps"],
+    "icon": "📄"
+  }
+]

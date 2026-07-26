@@ -5,6 +5,7 @@ import Login from './pages/Login';
 import Register from './pages/Register';
 import Dashboard from './pages/Dashboard';
 import Editor from './pages/Editor';
+import Templates from './pages/Templates';
 
 const PrivateRoute = ({ children }: { children: React.ReactNode }) => {
   const { isAuthenticated } = useAuth();
@@ -32,6 +33,14 @@ function AppRoutes() {
           </PrivateRoute>
         } 
       /> 
+      <Route 
+        path="/templates" 
+        element={
+          <PrivateRoute>
+            <Templates />
+          </PrivateRoute>
+        } 
+      />
     </Routes>
   );
 }
