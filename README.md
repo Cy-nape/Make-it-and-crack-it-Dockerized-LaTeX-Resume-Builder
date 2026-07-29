@@ -1,6 +1,6 @@
 # Make it and crack it — Dockerized LaTeX Resume Builder
 
-Make it and crack it is a deliberately small web application built to demonstrate Docker skills. It turns LaTeX resume source into a PDF in a container, removing the need to install and configure TeX Live on the host machine.
+Make it and crack it is a deliberately small web application built to Undestand Docker. It turns LaTeX resume source into a PDF in a container, removing the need to install and configure TeX Live on the host machine.
 
 The resume editor is the demo surface; the containerized compilation workflow is the project.
 
@@ -84,4 +84,4 @@ docker-compose.yml        Two-container production stack
 
 ## Scope
 
-This project intentionally has no authentication, database, or AI integration. Those features are useful in other products, but they would distract from the Docker and containerization concepts this repository is intended to demonstrate.
+This project intentionally has no authentication, database, or AI integration. Those features are useful in other projects , but they would distract from the Docker and containerization concepts.
