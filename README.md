@@ -1,118 +1,87 @@
-# ResumeForge — LaTeX Resume Builder
+# Make it and crack it — Dockerized LaTeX Resume Builder
 
-A modern, full-stack resume builder that lets you write professional resumes in LaTeX with real-time live preview. Built to explore and understand **Docker containerization** — the backend runs a fully containerized TeX Live distribution for compiling LaTeX to PDF on the fly.
+Make it and crack it is a deliberately small web application built to demonstrate Docker skills. It turns LaTeX resume source into a PDF in a container, removing the need to install and configure TeX Live on the host machine.
+
+The resume editor is the demo surface; the containerized compilation workflow is the project.
+
+## What it demonstrates
+
+- **Multi-stage Docker builds**: TypeScript and React are built in temporary stages; production images include only what they need at runtime.
+- **Complex system dependencies**: the API image bundles TeX Live and fonts alongside a Node.js service.
+- **Multi-container orchestration**: Docker Compose runs a frontend and backend on an isolated default network.
+- **Reverse proxying**: Nginx serves the production React build and forwards `/api/*` only to the backend service.
+- **Health checks and startup ordering**: the frontend waits for the API to pass its health check.
+- **Container hardening**: the compiler runs as a non-root user; shell escape is disabled; each compilation uses a new temporary directory, a time limit, bounded logs, and cleanup.
+- **Build hygiene**: `.dockerignore` files keep development output and secrets out of build contexts.
+
+## Architecture
+
+```text
+Browser (http://localhost:8080)
+            |
+            v
+Frontend container: Nginx + compiled React SPA
+            |  /api/latex/compile
+            v
+Backend container: Express + pdflatex + TeX Live
+            |
+            v
+Temporary compile directory -> PDF response -> cleaned up
+```
+
+The backend is not published to the host. Only Nginx exposes a port, and Compose networking lets it reach the backend by its service name (`backend`).
+
+## Run with Docker
+
+Prerequisite: [Docker Desktop](https://www.docker.com/products/docker-desktop/).
+
+```bash
+docker compose up --build
+```
+
+Open [http://localhost:8080](http://localhost:8080). Choose a template, edit its LaTeX, and the PDF preview is compiled by TeX Live inside the backend container.
+
+Useful commands:
+
+```bash
+docker compose ps
+docker compose logs -f backend
+docker compose exec backend pdflatex --version
+docker compose down
+```
 
 ## Features
 
-- **Live LaTeX Compilation** — Real-time side-by-side preview of your LaTeX resume, compiled inside a Docker container with TeX Live
-- **Template Gallery** — Browse and pick from 5 professionally designed, ATS-friendly LaTeX templates (Deedy, Awesome-CV, ModernCV Classic, Minimalist, Two-Column)
-- **Download Resume** — Download your compiled PDF or raw `.tex` source file with a single click
-- **Auto-Save** — Your work auto-saves to the browser so nothing is lost on refresh
-- **Dark/Light Mode** — Toggle the editor theme between dark and light
-- **Zoom Controls** — Zoom in/out on the PDF preview for detailed inspection
-- **Keyboard Shortcuts** — `Ctrl+S` to save & compile, `Ctrl+Enter` to force recompile
-- **Error Display** — Clear, collapsible error panel showing LaTeX compiler output with copy-to-clipboard
-- **Secure Authentication** — JWT-based authentication to manage your sessions
+- Five editable LaTeX resume templates
+- Live PDF compilation and compiler error output
+- Browser-only draft auto-save (no account or database)
+- Download the compiled PDF or raw `.tex` source
+- Dark/light editor themes, zoom controls, and keyboard shortcuts
 
-## Tech Stack
+## Local development without Docker
 
-- **Frontend**: React, Vite, Tailwind CSS v4, Monaco Editor (VS Code's editor)
-- **Backend**: Node.js, Express, TypeScript, Prisma (SQLite)
-- **Containerization**: Docker — the backend image includes a full TeX Live distribution for LaTeX compilation. This project was built to understand how Docker works in a real-world full-stack application.
+The frontend can run locally, but LaTeX compilation needs `pdflatex` available on your system.
 
-## Project Purpose
-
-This project was built primarily as a hands-on exercise to understand **Docker** and containerization in a practical context. The backend runs inside a Docker container that bundles a complete TeX Live LaTeX distribution, demonstrating how Docker can package complex system-level dependencies alongside a Node.js application.
-
-**Future Plans:** I'm working on adding AI capabilities (resume analysis, feedback, and job tailoring) in future iterations.
-
-## Local Setup
-
-### Prerequisites
-- Node.js (v20+)
-- Docker Desktop
-
-### Installation
-
-1. **Clone the repository**
-   ```bash
-   git clone https://github.com/Cy-nape/resume-forge.git
-   cd resume-forge
-   ```
-
-2. **Backend Setup**
-   ```bash
-   cd backend
-   npm install
-   ```
-   Create a `.env` file in the `backend` directory:
-   ```env
-   PORT=3001
-   DATABASE_URL="file:./dev.db"
-   JWT_SECRET="your-secret-key"
-   ```
-   Generate the Prisma client and push the schema:
-   ```bash
-   npx prisma generate
-   npx prisma db push
-   ```
-
-3. **Frontend Setup**
-   ```bash
-   cd frontend
-   npm install
-   ```
-
-4. **Run with Docker** (recommended — enables LaTeX compilation)
-   ```bash
-   # From the project root
-   docker-compose up backend
-   ```
-   Then in a separate terminal:
-   ```bash
-   cd frontend
-   npm run dev
-   ```
-
-5. Open your browser and navigate to `http://localhost:5173`
-
-### Running without Docker
-
-You can run the backend without Docker (`cd backend && npm run dev`), but LaTeX compilation won't work since it requires `pdflatex` from TeX Live which is installed inside the Docker container. Everything else (auth, editor, templates, auto-save) will work fine.
-
-## Templates
-
-The project includes 5 ready-to-use LaTeX resume templates:
-
-| Template | Style | Best For |
-|----------|-------|----------|
-| Deedy Resume | Clean, technical | Software engineers |
-| Awesome CV | Modern, colorful | Full stack developers |
-| ModernCV Classic | Academic/professional | Researchers, data scientists |
-| Minimalist | Ultra-clean single-column | Product, business roles |
-| Two Column Pro | Dense two-column | Experienced professionals |
-
-Templates are stored as static `.tex` files in `frontend/public/templates/` — add more by dropping in a new `.tex` file and updating `templates.json`.
-
-## Project Structure
-
-```
-├── backend/
-│   ├── Dockerfile          # Docker image with Node.js + TeX Live
-│   ├── src/
-│   │   ├── index.ts        # Express server entry point
-│   │   ├── controllers/    # Route handlers (auth, latex)
-│   │   ├── routes/         # API route definitions
-│   │   └── middleware/     # JWT authentication middleware
-│   └── prisma/             # Database schema
-├── frontend/
-│   ├── src/
-│   │   ├── pages/          # React pages (Editor, Dashboard, Templates, Login)
-│   │   ├── context/        # Auth context provider
-│   │   └── components/     # Reusable UI components
-│   └── public/templates/   # LaTeX templates + metadata
-└── docker-compose.yml      # Docker orchestration
+```bash
+cd backend && npm install && npm run dev
+cd frontend && npm install && npm run dev
 ```
 
-## License
-MIT License
+Set `VITE_API_URL="http://localhost:3001"` in `frontend/.env` when running the Vite development server. Copy `.env.example` for the optional local environment values.
+
+## Project structure
+
+```text
+backend/
+  Dockerfile              Express API + TeX Live runtime
+  src/controllers/latex.ts  Isolated LaTeX compilation endpoint
+frontend/
+  Dockerfile              React build stage + Nginx runtime
+  nginx.conf              SPA serving and API reverse proxy
+  public/templates/       Resume templates and metadata
+docker-compose.yml        Two-container production stack
+```
+
+## Scope
+
+This project intentionally has no authentication, database, or AI integration. Those features are useful in other products, but they would distract from the Docker and containerization concepts this repository is intended to demonstrate.

@@ -1,19 +1,26 @@
-version: '3.8'
-
 services:
   backend:
     build:
       context: ./backend
-      dockerfile: Dockerfile
-    ports:
-      - "3001:3001"
-    volumes:
-      - ./backend:/app
-      - /app/node_modules # Prevent host node_modules from overriding container's
+      target: runtime
     environment:
-      - PORT=3001
-      - DATABASE_URL=file:./dev.db
-      - JWT_SECRET=supersecret123
-      # Add GEMINI_API_KEY to a local .env file instead of committing it here
-    env_file:
-      - ./backend/.env
+      PORT: 3001
+    expose:
+      - "3001"
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3001/health').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+    ports:
+      - "8080:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+    restart: unless-stopped

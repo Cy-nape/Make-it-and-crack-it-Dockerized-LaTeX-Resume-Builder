@@ -42,8 +42,12 @@ export default function Editor() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
 
+  const [saveStatus, setSaveStatus] = useState<'saved' | 'unsaved'>('saved');
+  const [zoomLevel, setZoomLevel] = useState(100);
 
   const compileTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const initialLoadRef = useRef(true);
 
   // Template Loading
   useEffect(() => {
@@ -57,6 +61,7 @@ export default function Editor() {
         .then(content => {
           setTexContent(content);
           localStorage.setItem(AUTOSAVE_KEY, content);
+          setSaveStatus('saved');
         })
         .catch(err => {
           console.error('Failed to load template:', err);
@@ -67,8 +72,22 @@ export default function Editor() {
         setTexContent(saved);
       }
     }
+    initialLoadRef.current = false;
   }, []);
 
+  // Auto-save
+  useEffect(() => {
+    if (initialLoadRef.current) return;
+    setSaveStatus('unsaved');
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    saveTimerRef.current = setTimeout(() => {
+      localStorage.setItem(AUTOSAVE_KEY, texContent);
+      setSaveStatus('saved');
+    }, 500);
+    return () => {
+      if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    };
+  }, [texContent]);
 
   // Debounced Compilation
   useEffect(() => {
@@ -88,6 +107,7 @@ export default function Editor() {
       if (isCtrlOrCmd && e.key === 's') {
         e.preventDefault();
         localStorage.setItem(AUTOSAVE_KEY, texContent);
+        setSaveStatus('saved');
         compileLatex(texContent);
       }
       if (isCtrlOrCmd && e.key === 'Enter') {
@@ -165,6 +185,7 @@ export default function Editor() {
     setLastGoodPdfUrl(null);
     setCompileError(null);
     localStorage.setItem(AUTOSAVE_KEY, DEFAULT_TEX);
+    setSaveStatus('saved');
   };
 
   const displayPdfUrl = pdfUrl || lastGoodPdfUrl;
@@ -176,6 +197,9 @@ export default function Editor() {
         <div className="flex items-center gap-4">
           <button onClick={() => navigate('/')} className="text-blue-600 hover:underline">Back</button>
           <span className="font-bold">Editor</span>
+          <span className="text-sm text-gray-500">
+            {saveStatus === 'saved' ? 'Saved' : 'Unsaved changes...'}
+          </span>
           {isCompiling && <span className="text-sm text-blue-600">Compiling...</span>}
         </div>
 
@@ -202,11 +226,7 @@ export default function Editor() {
             language="latex"
             theme="vs-light"
             value={texContent}
-            onChange={(val) => {
-              const content = val || '';
-              setTexContent(content);
-              localStorage.setItem(AUTOSAVE_KEY, content);
-            }}
+            onChange={(val) => setTexContent(val || '')}
             options={{ minimap: { enabled: false }, wordWrap: 'on' }}
           />
         </div>
@@ -215,6 +235,12 @@ export default function Editor() {
         <div className="flex-1 h-full flex flex-col bg-gray-100 relative">
           <div className="flex justify-between items-center px-4 py-2 border-b bg-gray-50">
             <span className="font-bold text-sm">Preview</span>
+            <div className="flex items-center gap-2">
+              <button onClick={() => setZoomLevel(z => Math.max(z - 15, 50))} className="px-2 border rounded bg-white text-sm">-</button>
+              <span className="text-sm">{zoomLevel}%</span>
+              <button onClick={() => setZoomLevel(z => Math.min(z + 15, 200))} className="px-2 border rounded bg-white text-sm">+</button>
+              <button onClick={() => setZoomLevel(100)} className="px-2 border rounded bg-white text-sm">Reset</button>
+            </div>
           </div>
           
           <div className="flex-1 overflow-auto relative">
@@ -224,8 +250,8 @@ export default function Editor() {
                   src={displayPdfUrl + '#toolbar=0'}
                   className="border"
                   style={{
-                    width: '100%',
-                    height: '100%',
+                    width: `${zoomLevel}%`,
+                    height: `${zoomLevel}%`,
                     minHeight: '100%',
                   }}
                   title="PDF Preview"

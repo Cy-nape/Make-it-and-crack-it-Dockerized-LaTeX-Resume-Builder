@@ -1,87 +1,102 @@
-import { useAuth } from '../context/AuthContext';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FileText, LayoutTemplate, LogOut, Plus } from 'lucide-react';
+
+interface Template {
+  id: string;
+  name: string;
+  description: string;
+  file: string;
+}
 
 export default function Dashboard() {
-  const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const [templates, setTemplates] = useState<Template[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const handleLogout = () => {
-    logout();
-    navigate('/login');
+  useEffect(() => {
+    fetch('/templates/templates.json')
+      .then(res => res.json())
+      .then(data => {
+        setTemplates(data);
+        setLoading(false);
+      })
+      .catch(err => {
+        console.error('Failed to load templates:', err);
+        setLoading(false);
+      });
+  }, []);
+
+  const handleUseTemplate = (template: Template) => {
+    const autosaved = localStorage.getItem('makeitandcrackit_autosave');
+    if (autosaved && autosaved.trim().length > 0) {
+      const confirmed = window.confirm(
+        'You have unsaved work in the editor. Loading a template will replace it. Continue?'
+      );
+      if (!confirmed) return;
+    }
+    navigate(`/editor?template=${template.id}`);
   };
 
   return (
-    <div className="min-h-screen bg-zinc-950 text-white">
-      {/* Header */}
-      <header className="border-b border-zinc-800 bg-zinc-950/80 backdrop-blur-xl">
-        <div className="max-w-5xl mx-auto px-6 py-4 flex justify-between items-center">
-          <h1 className="text-xl font-bold">
-            <span className="text-blue-500">Resume</span>Forge
-          </h1>
-          <div className="flex items-center gap-4">
-            <span className="text-sm text-zinc-400">
-              {user?.name || user?.email}
-            </span>
+    <div className="min-h-screen bg-white text-black p-8">
+      <header className="mb-12 border-b pb-4">
+        <h1 className="text-3xl font-bold">Make it and crack it</h1>
+        <p className="text-gray-600">Docker-powered LaTeX compiler</p>
+      </header>
+
+      <main className="max-w-4xl">
+        <section className="mb-12">
+          <h2 className="text-2xl font-bold mb-4">LaTeX resumes, compiled in a container.</h2>
+          <p className="text-lg mb-6 text-gray-700">
+            Make it and crack it packages a Node.js API and the TeX Live toolchain in Docker, so a browser can turn LaTeX into a PDF without a local LaTeX installation.
+          </p>
+          <div className="flex gap-4">
             <button 
-              onClick={handleLogout}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-zinc-400 hover:text-red-400 rounded-md text-sm font-medium transition-colors hover:bg-zinc-800"
+              onClick={() => navigate('/editor')} 
+              className="bg-blue-600 text-white px-4 py-2 rounded font-medium"
             >
-              <LogOut size={14} />
-              Logout
+              Open Blank Editor
             </button>
           </div>
-        </div>
-      </header>
-      
-      <main className="max-w-5xl mx-auto px-6 py-10">
-        {/* Welcome */}
-        <div className="mb-10">
-          <h2 className="text-2xl font-bold mb-2">
-            Welcome back{user?.name ? `, ${user.name}` : ''}
-          </h2>
-          <p className="text-zinc-400">
-            Create professional resumes with LaTeX and AI-powered feedback.
-          </p>
-        </div>
+        </section>
 
-        {/* Quick actions */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-10">
-          <button 
-            onClick={() => navigate('/editor')}
-            className="group flex items-start gap-4 p-5 bg-zinc-900 border border-zinc-800 rounded-xl hover:border-blue-500/50 hover:shadow-lg hover:shadow-blue-500/5 transition-all duration-300 text-left"
-          >
-            <div className="p-2.5 rounded-lg bg-blue-600/10 text-blue-500 group-hover:bg-blue-600/20 transition-colors">
-              <Plus size={22} />
+        <section className="mb-12">
+          <h3 className="text-xl font-bold mb-4">Start with a template</h3>
+          {loading ? (
+            <p>Loading templates...</p>
+          ) : (
+            <div className="grid gap-4 md:grid-cols-2">
+              {templates.map(template => (
+                <div key={template.id} className="border p-4 rounded flex flex-col justify-between">
+                  <div>
+                    <h4 className="font-bold">{template.name}</h4>
+                    <p className="text-sm text-gray-600 mb-4">{template.description}</p>
+                  </div>
+                  <button
+                    onClick={() => handleUseTemplate(template)}
+                    className="bg-gray-100 hover:bg-gray-200 text-black px-3 py-1 rounded text-sm self-start"
+                  >
+                    Use Template
+                  </button>
+                </div>
+              ))}
             </div>
-            <div>
-              <h3 className="font-semibold text-white mb-1">Create New Resume</h3>
-              <p className="text-sm text-zinc-400">Start from scratch with the LaTeX editor</p>
-            </div>
-          </button>
+          )}
+        </section>
 
-          <button 
-            onClick={() => navigate('/templates')}
-            className="group flex items-start gap-4 p-5 bg-zinc-900 border border-zinc-800 rounded-xl hover:border-purple-500/50 hover:shadow-lg hover:shadow-purple-500/5 transition-all duration-300 text-left"
-          >
-            <div className="p-2.5 rounded-lg bg-purple-600/10 text-purple-500 group-hover:bg-purple-600/20 transition-colors">
-              <LayoutTemplate size={22} />
-            </div>
-            <div>
-              <h3 className="font-semibold text-white mb-1">Browse Templates</h3>
-              <p className="text-sm text-zinc-400">Pick from ATS-friendly LaTeX templates</p>
-            </div>
-          </button>
-        </div>
-
-        {/* Recent resumes section (placeholder for future) */}
-        <section className="bg-zinc-900 border border-zinc-800 rounded-xl p-6">
-          <h3 className="text-lg font-semibold mb-4">Your Resumes</h3>
-          <div className="flex flex-col items-center justify-center py-8 text-center">
-            <FileText size={40} className="text-zinc-700 mb-3" />
-            <p className="text-zinc-500 mb-1">No saved resumes yet</p>
-            <p className="text-zinc-600 text-sm">Your work auto-saves in the editor — start writing to see it here.</p>
-          </div>
+        <section className="grid gap-6 md:grid-cols-3 mb-12 border-t pt-8">
+          <article>
+            <h3 className="font-bold mb-2">Reproducible runtime</h3>
+            <p className="text-sm text-gray-600">The compiler, fonts, Node runtime, and application dependencies are defined in versioned Dockerfiles.</p>
+          </article>
+          <article>
+            <h3 className="font-bold mb-2">Two-service stack</h3>
+            <p className="text-sm text-gray-600">Nginx serves the built React app and reverse-proxies compile requests to the private API service.</p>
+          </article>
+          <article>
+            <h3 className="font-bold mb-2">Safer compilation</h3>
+            <p className="text-sm text-gray-600">Each compile runs in its own temporary directory with a timeout, bounded output, cleanup, and shell escape disabled.</p>
+          </article>
         </section>
       </main>
     </div>
