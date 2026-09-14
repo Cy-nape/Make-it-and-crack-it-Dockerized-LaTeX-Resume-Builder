@@ -4,7 +4,7 @@ services:
       context: ./backend
       target: dev
     volumes:
-      - ./backend/src:/app/src
+      - ./backend:/app
     ports:
       - "127.0.0.1:3001:3001"
     environment:

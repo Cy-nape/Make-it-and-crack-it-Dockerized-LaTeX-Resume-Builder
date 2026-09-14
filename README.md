@@ -1,6 +1,6 @@
-# Make it and crack it — Dockerized LaTeX Resume Builder
+# Drafted
 
-Make it and crack it is a deliberately small web application built to Undestand Docker. It turns LaTeX resume source into a PDF in a container, removing the need to install and configure TeX Live on the host machine.
+Drafted is a deliberately small web application built to understand Docker. It turns LaTeX resume source into a PDF in a container, removing the need to install and configure TeX Live on the host machine.
 
 The resume editor is the demo surface; the containerized compilation workflow is the project.
 
