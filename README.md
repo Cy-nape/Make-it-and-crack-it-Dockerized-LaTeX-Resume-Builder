@@ -1,20 +1,10 @@
 # Drafted
 
-Drafted is a deliberately small web application built to understand Docker. It turns LaTeX resume source into a PDF in a container, removing the need to install and configure TeX Live on the host machine.
+Drafted is a containerized web application designed to demonstrate the power of Docker in managing complex system dependencies. By encapsulating the notoriously heavy TeX Live distribution within an isolated backend container, Drafted allows users to compile LaTeX resumes directly from their browser without installing a single TeX package on their host machine.
 
-The resume editor is the demo surface; the containerized compilation workflow is the project.
+## Architectural Philosophy
 
-## What it demonstrates
-
-- **Multi-stage Docker builds**: TypeScript and React are built in temporary stages; production images include only what they need at runtime.
-- **Complex system dependencies**: the API image bundles TeX Live and fonts alongside a Node.js service.
-- **Multi-container orchestration**: Docker Compose runs a frontend and backend on an isolated default network.
-- **Reverse proxying**: Nginx serves the production React build and forwards `/api/*` only to the backend service.
-- **Health checks and startup ordering**: the frontend waits for the API to pass its health check.
-- **Container hardening**: the compiler runs as a non-root user; shell escape is disabled; each compilation uses a new temporary directory, a time limit, bounded logs, and cleanup.
-- **Build hygiene**: `.dockerignore` files keep development output and secrets out of build contexts.
-
-## Architecture
+The core of Drafted is a strict separation of concerns, orchestrated through Docker Compose. The resume editor acts as the interactive surface, while the containerized compilation workflow handles the heavy lifting.
 
 ```text
 Browser (http://localhost:8080)
@@ -23,25 +13,35 @@ Browser (http://localhost:8080)
 Frontend container: Nginx + compiled React SPA
             |  /api/latex/compile
             v
-Backend container: Express + pdflatex + TeX Live
+Backend container: Flask + pdflatex + TeX Live
             |
             v
-Temporary compile directory -> PDF response -> cleaned up
+Ephemeral compile directory -> PDF response -> cleaned up
 ```
 
-The backend is not published to the host. Only Nginx exposes a port, and Compose networking lets it reach the backend by its service name (`backend`).
+- The Frontend is a React Single Page Application (SPA) served by Nginx. It handles the editor state, templates, and PDF rendering.
+- The Backend is a lightweight Python/Flask API. Its only job is to receive LaTeX strings, securely orchestrate the `pdflatex` binary in a temporary workspace, and return the generated PDF.
 
-## Run with Docker
+## Engineering Highlights
 
-Prerequisite: [Docker Desktop](https://www.docker.com/products/docker-desktop/).
+- Multi-stage Docker Builds: The React frontend is compiled in a temporary Node.js stage, ensuring the final Nginx image is lean and production-ready.
+- Dependency Isolation: The Python backend image bundles a carefully selected subset of TeX Live, completely shielding the host system from gigabytes of LaTeX dependencies.
+- Secure Compilation: The Flask API executes `pdflatex` as a non-root user with shell escapes disabled. Every compilation request is isolated in a unique temporary directory, strictly time-boxed, and rigorously cleaned up regardless of success or failure.
+- Zero-Configuration Routing: Nginx seamlessly serves the static frontend while proxying `/api/*` traffic to the backend, avoiding complex CORS setups in production.
+
+## Running the Application
+
+Prerequisite: Docker Desktop must be installed and running on your machine.
+
+To spin up the entire production-ready stack:
 
 ```bash
 docker compose up --build
 ```
 
-Open [http://localhost:8080](http://localhost:8080). Choose a template, edit its LaTeX, and the PDF preview is compiled by TeX Live inside the backend container.
+Navigate to http://localhost:8080 in your browser. Select a template, modify the LaTeX source, and watch the PDF compile natively inside the container.
 
-Useful commands:
+Useful management commands:
 
 ```bash
 docker compose ps
@@ -50,38 +50,46 @@ docker compose exec backend pdflatex --version
 docker compose down
 ```
 
-## Features
+## Local Development
 
-- Five editable LaTeX resume templates
-- Live PDF compilation and compiler error output
-- Browser-only draft auto-save (no account or database)
-- Download the compiled PDF or raw `.tex` source
-- Dark/light editor themes, zoom controls, and keyboard shortcuts
+If you prefer to run the application locally outside of Docker, you must have Python 3 and a working TeX distribution (`pdflatex`) installed on your system path.
 
-## Local development without Docker
-
-The frontend can run locally, but LaTeX compilation needs `pdflatex` available on your system.
-
+Frontend (Vite):
 ```bash
-cd backend && npm install && npm run dev
-cd frontend && npm install && npm run dev
+cd frontend
+npm install
+VITE_API_URL="http://localhost:3001" npm run dev
 ```
 
-Set `VITE_API_URL="http://localhost:3001"` in `frontend/.env` when running the Vite development server. Copy `.env.example` for the optional local environment values.
+Backend (Flask):
+```bash
+cd backend
+python3 -m venv venv
+source venv/bin/activate  # On Windows use: venv\Scripts\activate
+pip install -r requirements.txt
+flask run --port=3001 --debug
+```
 
-## Project structure
+For containerized development with hot-reloading enabled, use the provided development compose file:
+```bash
+docker compose -f docker-compose.dev.yml up --build
+```
+
+## Project Layout
 
 ```text
 backend/
-  Dockerfile              Express API + TeX Live runtime
-  src/controllers/latex.ts  Isolated LaTeX compilation endpoint
+  Dockerfile              Flask API + TeX Live environment
+  app.py                  Isolated LaTeX compilation endpoint and web server
+  requirements.txt        Python dependencies
 frontend/
   Dockerfile              React build stage + Nginx runtime
-  nginx.conf              SPA serving and API reverse proxy
+  nginx.conf              Static file serving and API reverse proxy
   public/templates/       Resume templates and metadata
 docker-compose.yml        Two-container production stack
+docker-compose.dev.yml    Development stack with hot-reloading
 ```
 
-## Scope
+## Project Scope
 
-This project intentionally has no authentication, database, or AI integration. Those features are useful in other projects , but they would distract from the Docker and containerization concepts.
+Drafted is intentionally focused on robust compilation and containerization. It actively avoids features like user authentication, database persistence, and AI generation to remain a pure, easily understandable reference architecture for Dockerized application development.
