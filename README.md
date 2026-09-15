@@ -1,10 +1,10 @@
-# Drafted
+# Resume Builder
 
-Drafted is a containerized web application designed to demonstrate the power of Docker in managing complex system dependencies. By encapsulating the notoriously heavy TeX Live distribution within an isolated backend container, Drafted allows users to compile LaTeX resumes directly from their browser without installing a single TeX package on their host machine.
+Resume Builder is a containerized web application designed to demonstrate the power of Docker in managing complex system dependencies. By encapsulating the notoriously heavy TeX Live distribution within an isolated backend container, Resume Builder allows users to compile LaTeX resumes directly from their browser without installing a single TeX package on their host machine.
 
 ## Architectural Philosophy
 
-The core of Drafted is a strict separation of concerns, orchestrated through Docker Compose. The resume editor acts as the interactive surface, while the containerized compilation workflow handles the heavy lifting.
+The core of Resume Builder is a strict separation of concerns, orchestrated through Docker Compose. The resume editor acts as the interactive surface, while the containerized compilation workflow handles the heavy lifting.
 
 ```text
 Browser (http://localhost:8080)
@@ -92,4 +92,4 @@ docker-compose.dev.yml    Development stack with hot-reloading
 
 ## Project Scope
 
-Drafted is intentionally focused on robust compilation and containerization. It actively avoids features like user authentication, database persistence, and AI generation to remain a pure, easily understandable reference architecture for Dockerized application development.
+Resume Builder is intentionally focused on robust compilation and containerization. It actively avoids features like user authentication, database persistence, and AI generation to remain a pure, easily understandable reference architecture for Dockerized application development.
