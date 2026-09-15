@@ -40,7 +40,7 @@ export default function Dashboard() {
   return (
     <div className="min-h-screen bg-white text-black p-8">
       <header className="mb-12 border-b pb-4">
-        <h1 className="text-3xl font-bold">Make it and crack it</h1>
+        <h1 className="text-3xl font-bold">Resume Builder</h1>
         <p className="text-gray-600">Docker-powered LaTeX compiler</p>
       </header>
 
@@ -48,7 +48,7 @@ export default function Dashboard() {
         <section className="mb-12">
           <h2 className="text-2xl font-bold mb-4">LaTeX resumes, compiled in a container.</h2>
           <p className="text-lg mb-6 text-gray-700">
-            Make it and crack it packages a Node.js API and the TeX Live toolchain in Docker, so a browser can turn LaTeX into a PDF without a local LaTeX installation.
+            Resume Builder packages a Python/Flask API and the TeX Live toolchain in Docker, so a browser can turn LaTeX into a PDF without a local LaTeX installation.
           </p>
           <div className="flex gap-4">
             <button 
