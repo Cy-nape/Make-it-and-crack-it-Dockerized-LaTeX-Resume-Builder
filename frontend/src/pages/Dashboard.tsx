@@ -84,20 +84,7 @@ export default function Dashboard() {
           )}
         </section>
 
-        <section className="grid gap-6 md:grid-cols-3 mb-12 border-t pt-8">
-          <article>
-            <h3 className="font-bold mb-2">Reproducible runtime</h3>
-            <p className="text-sm text-gray-600">The compiler, fonts, Node runtime, and application dependencies are defined in versioned Dockerfiles.</p>
-          </article>
-          <article>
-            <h3 className="font-bold mb-2">Two-service stack</h3>
-            <p className="text-sm text-gray-600">Nginx serves the built React app and reverse-proxies compile requests to the private API service.</p>
-          </article>
-          <article>
-            <h3 className="font-bold mb-2">Safer compilation</h3>
-            <p className="text-sm text-gray-600">Each compile runs in its own temporary directory with a timeout, bounded output, cleanup, and shell escape disabled.</p>
-          </article>
-        </section>
+
       </main>
     </div>
   );
