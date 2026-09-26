@@ -8,11 +8,13 @@ services:
     expose:
       - "3001"
     healthcheck:
-      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3001/health').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"]
-      interval: 30s
+      # curl se health check karo - ye Python image mein available hai (Dockerfile mein install kiya tha)
+      # Node.js is Python image mein nahi hota isliye pehle wala fail ho raha tha
+      test: ["CMD", "curl", "-f", "http://127.0.0.1:3001/health"]
+      interval: 15s
       timeout: 5s
       retries: 3
-      start_period: 10s
+      start_period: 30s
     restart: unless-stopped
 
   frontend:
