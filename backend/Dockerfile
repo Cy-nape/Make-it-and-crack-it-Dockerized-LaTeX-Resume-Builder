@@ -27,23 +27,6 @@ ENV PATH="/opt/venv/bin:$PATH"
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# --- Runtime Stage ---
-FROM base AS runtime
-WORKDIR /app
-
-# Copy application code
-COPY app.py .
-
-# Switch to non-root user
-USER app
-EXPOSE 3001
-
-HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
-  CMD curl -f http://127.0.0.1:3001/health || exit 1
-
-# Run with Gunicorn in production
-CMD ["gunicorn", "--bind", "0.0.0.0:3001", "--workers", "2", "--timeout", "30", "app:app"]
-
 # --- Dev Stage ---
 FROM base AS dev
 WORKDIR /app
@@ -55,3 +38,17 @@ RUN pip install --no-cache-dir watchdog
 USER app
 # Flask development server
 CMD ["flask", "run", "--host=0.0.0.0", "--port=3001", "--debug"]
+
+# --- Runtime Stage ---
+FROM base AS runtime
+WORKDIR /app
+
+# Copy application code
+COPY app.py .
+
+# Switch to non-root user
+USER app
+
+# Render sets the PORT environment variable dynamically. 
+# We use sh -c to expand it, or default to 3001 if it's not set.
+CMD sh -c "gunicorn --bind 0.0.0.0:${PORT:-3001} --workers 2 --timeout 30 app:app"
