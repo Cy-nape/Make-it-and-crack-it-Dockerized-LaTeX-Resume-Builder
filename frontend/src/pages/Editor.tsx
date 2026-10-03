@@ -62,8 +62,8 @@ export default function Editor() {
   const [assessmentResult, setAssessmentResult] = useState<string | null>(null);
   const [assessmentError, setAssessmentError] = useState<string | null>(null);
 
-  // --- AI Panel active tab: 'assess' | 'jdmatch' | 'rewrite' ---
-  const [aiTab, setAiTab] = useState<'assess' | 'jdmatch' | 'rewrite'>('assess');
+  // --- AI Panel active tab: 'assess' | 'jdmatch' | 'ask' ---
+  const [aiTab, setAiTab] = useState<'assess' | 'jdmatch' | 'ask'>('assess');
 
   // --- JD Matcher state ---
   const [jdText, setJdText] = useState('');
@@ -72,11 +72,11 @@ export default function Editor() {
   const [isMatchingJd, setIsMatchingJd] = useState(false);
   const [jdError, setJdError] = useState<string | null>(null);
 
-  // --- Bullet Rewriter state ---
-  const [selectedBullet, setSelectedBullet] = useState('');
-  const [rewriteResult, setRewriteResult] = useState<string | null>(null);
-  const [isRewriting, setIsRewriting] = useState(false);
-  const [rewriteError, setRewriteError] = useState<string | null>(null);
+  // --- Ask Gemini state ---
+  const [userQuestion, setUserQuestion] = useState('');
+  const [askResult, setAskResult] = useState<string | null>(null);
+  const [isAsking, setIsAsking] = useState(false);
+  const [askError, setAskError] = useState<string | null>(null);
 
   // --- Refs ---
   const compileTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -427,42 +427,27 @@ ${texContent.substring(0, 2000)}
     }
   };
 
-  // --- Feature 4: Bullet Point Rewriter ---
-  const handleGrabSelection = () => {
-    const editor = editorRef.current;
-    if (!editor) return;
-    const selection = editor.getSelection();
-    const selectedText = editor.getModel()?.getValueInRange(selection) || '';
-    setSelectedBullet(selectedText.trim());
-  };
-
-  const handleRewriteBullet = async () => {
+  // --- Feature 4: Ask Gemini (Doubts) ---
+  const handleAskGemini = async () => {
     if (!apiKey.trim()) {
-      setRewriteError('Demo Mode: AI features are disabled in this public deployment to prevent API abuse. The LaTeX compiler is fully functional!');
+      setAskError('Demo Mode: AI features are disabled in this public deployment to prevent API abuse. The LaTeX compiler is fully functional!');
       return;
     }
-    if (!selectedBullet.trim()) {
-      setRewriteError('Pehle editor mein text select karo, phir "Grab Selection" dabao!');
+    if (!userQuestion.trim()) {
+      setAskError('Pehle apna doubt ya question type karo!');
       return;
     }
 
-    setIsRewriting(true);
-    setRewriteResult(null);
-    setRewriteError(null);
+    setIsAsking(true);
+    setAskResult(null);
+    setAskError(null);
 
     try {
-      const prompt = `You are an expert resume writer. Rewrite the following resume bullet point(s) to be more impactful. RESPOND IN ENGLISH ONLY.
+      const prompt = `You are an expert resume consultant and LaTeX helper. The user has a question or doubt about their resume or LaTeX formatting. Answer it directly and concisely. RESPOND IN ENGLISH ONLY.
 
-Rules:
-- Start each bullet with a strong ACTION VERB (Led, Engineered, Optimized, Spearheaded, etc.)
-- Add QUANTIFIED IMPACT where possible (%, $, time saved, users impacted)
-- Keep the LaTeX formatting (\\\\item, \\\\textbf, etc.) intact
-- Provide 2-3 alternative rewrites for each bullet
-- Format each rewrite as a numbered option
-
-Original text:
+User's Question:
 ---
-${selectedBullet}
+${userQuestion}
 ---
 
 Context from full resume (for relevance):
@@ -471,11 +456,11 @@ ${texContent.substring(0, 1500)}
 ---`;
 
       const result = await callGemini(prompt);
-      setRewriteResult(result);
+      setAskResult(result);
     } catch (err: any) {
-      setRewriteError(err.message);
+      setAskError(err.message);
     } finally {
-      setIsRewriting(false);
+      setIsAsking(false);
     }
   };
 
@@ -639,7 +624,7 @@ ${texContent.substring(0, 1500)}
               {([
                 { id: 'assess' as const, label: 'Assess' },
                 { id: 'jdmatch' as const, label: 'JD Match' },
-                { id: 'rewrite' as const, label: 'Rewrite' },
+                { id: 'ask' as const, label: 'Ask AI' },
               ]).map((tab) => (
                 <button
                   key={tab.id}
@@ -886,53 +871,43 @@ ${texContent.substring(0, 1500)}
                 </>
               )}
 
-              {/* ========== REWRITE TAB ========== */}
-              {aiTab === 'rewrite' && (
+              {/* ========== ASK AI TAB ========== */}
+              {aiTab === 'ask' && (
                 <>
-                  <div className="bg-gray-50 border border-gray-200 rounded p-3">
-                    <p className="text-xs text-gray-600 mb-2">
-                      <strong>How to use:</strong> Select text in the editor → click "Grab Selection" → click "Rewrite"
-                    </p>
-                    <button
-                      onClick={handleGrabSelection}
-                      className="w-full py-1.5 px-3 bg-white border border-gray-300 text-gray-700 rounded text-xs font-medium
-                                 hover:bg-gray-50 transition-colors"
-                    >
-                      Grab Selection from Editor
-                    </button>
+                  <div>
+                    <label className="text-xs font-medium text-gray-700 mb-1 block">
+                      Ask any doubt or for suggestions:
+                    </label>
+                    <textarea
+                      value={userQuestion}
+                      onChange={(e) => setUserQuestion(e.target.value)}
+                      placeholder="e.g. How can I make my summary better? or What LaTeX command to use for bold text?"
+                      className="w-full h-32 border rounded p-2 text-xs resize-none focus:outline-none focus:ring-2 focus:ring-purple-400"
+                    />
                   </div>
 
-                  {selectedBullet && (
-                    <div className="bg-gray-50 border border-gray-200 rounded p-3">
-                      <p className="text-xs font-bold text-gray-700 mb-1">Selected Text:</p>
-                      <pre className="text-xs text-gray-700 whitespace-pre-wrap font-mono bg-white p-2 rounded border">
-                        {selectedBullet}
-                      </pre>
-                    </div>
-                  )}
-
                   <button
-                    onClick={handleRewriteBullet}
-                    disabled={isRewriting || !selectedBullet.trim()}
+                    onClick={handleAskGemini}
+                    disabled={isAsking || !userQuestion.trim()}
                     className="w-full py-2 px-4 bg-black text-white rounded font-medium text-sm
                                hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed
                                transition-colors flex items-center justify-center gap-2"
                   >
-                    {isRewriting ? (
-                      <><span className="animate-spin">⟳</span> Rewriting...</>
+                    {isAsking ? (
+                      <><span className="animate-spin">⟳</span> Asking...</>
                     ) : (
-                      <>Rewrite with AI</>
+                      <>Ask Gemini</>
                     )}
                   </button>
 
                   {/* Skeleton Loading Animation */}
-                  {isRewriting && (
+                  {isAsking && (
                     <div className="bg-gray-50 border border-gray-200 rounded p-4 space-y-3 animate-pulse">
                       <div className="flex items-center gap-2 mb-3">
                         <div className="w-4 h-4 bg-gray-300 rounded-full animate-pulse" style={{animationDelay: '0ms'}} />
                         <div className="w-4 h-4 bg-gray-300 rounded-full animate-pulse" style={{animationDelay: '150ms'}} />
                         <div className="w-4 h-4 bg-gray-300 rounded-full animate-pulse" style={{animationDelay: '300ms'}} />
-                        <span className="text-xs text-gray-600 font-medium ml-1">Rewriting with stronger impact...</span>
+                        <span className="text-xs text-gray-600 font-medium ml-1">Thinking...</span>
                       </div>
                       <div className="h-3 bg-gray-200 rounded w-full" />
                       <div className="h-3 bg-gray-200 rounded w-5/6" />
@@ -942,16 +917,16 @@ ${texContent.substring(0, 1500)}
                     </div>
                   )}
 
-                  {rewriteError && (
+                  {askError && (
                     <div className="bg-red-50 border border-red-200 rounded p-3">
                       <p className="text-xs font-bold text-red-700 mb-1">Error:</p>
-                      <p className="text-xs text-red-600">{rewriteError}</p>
+                      <p className="text-xs text-red-600">{askError}</p>
                     </div>
                   )}
 
-                  {rewriteResult && (
+                  {askResult && (
                     <div className="bg-gray-50 border border-gray-200 rounded p-3">
-                      <p className="text-xs font-bold text-gray-800 mb-2">AI Rewrites:</p>
+                      <p className="text-xs font-bold text-gray-800 mb-2">Answer:</p>
                       <div className="prose prose-xs max-w-none text-gray-800 text-xs leading-relaxed whitespace-pre-wrap break-words
                                       [&_h1]:text-sm [&_h1]:font-bold [&_h1]:text-gray-900 [&_h1]:mt-2 [&_h1]:mb-1
                                       [&_h2]:text-sm [&_h2]:font-bold [&_h2]:text-gray-800 [&_h2]:mt-2 [&_h2]:mb-1
@@ -963,17 +938,17 @@ ${texContent.substring(0, 1500)}
                                       [&_p]:my-1
                                       [&_pre]:whitespace-pre-wrap [&_pre]:break-words
                                       [&_code]:whitespace-pre-wrap [&_code]:break-words [&_code]:bg-gray-100 [&_code]:px-1 [&_code]:rounded [&_code]:text-gray-900 [&_code]:border [&_code]:border-gray-200">
-                        <ReactMarkdown>{rewriteResult}</ReactMarkdown>
+                        <ReactMarkdown>{askResult}</ReactMarkdown>
                       </div>
                     </div>
                   )}
 
-                  {!rewriteResult && !rewriteError && !isRewriting && !selectedBullet && (
+                  {!askResult && !askError && !isAsking && (
                     <div className="text-center text-gray-400 text-xs mt-4">
-                      <p className="text-sm font-medium mb-1">Rewrite Bullet</p>
-                      <p>Select a bullet point in the editor</p>
-                      <p>and AI will rewrite it with stronger</p>
-                      <p>action verbs and quantified impact.</p>
+                      <p className="text-sm font-medium mb-1">Ask AI</p>
+                      <p>Type any question about your</p>
+                      <p>resume or LaTeX formatting</p>
+                      <p>and get instant answers.</p>
                     </div>
                   )}
                 </>
