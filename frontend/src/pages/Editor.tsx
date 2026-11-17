@@ -57,7 +57,10 @@ export default function Editor() {
 
   // --- AI Assessment ke liye State Variables ---
   const [showAiPanel, setShowAiPanel] = useState(false);
-  const apiKey = (import.meta.env.VITE_GEMINI_API_KEY || '').trim();
+  const [customApiKey, setCustomApiKey] = useState(() => localStorage.getItem('gemini_api_key') || '');
+  const apiKey = (customApiKey.trim() || import.meta.env.VITE_GEMINI_API_KEY || '').trim();
+  const [showKeySettings, setShowKeySettings] = useState(false);
+  const [tempApiKey, setTempApiKey] = useState('');
   const [isAssessing, setIsAssessing] = useState(false);
   const [assessmentResult, setAssessmentResult] = useState<string | null>(null);
   const [assessmentError, setAssessmentError] = useState<string | null>(null);
@@ -305,7 +308,8 @@ export default function Editor() {
   // --- Feature 1: AI Assessment ---
   const handleAssessResume = async () => {
     if (!apiKey.trim()) {
-      setAssessmentError('Demo Mode: AI features are disabled in this public deployment to prevent API abuse. The LaTeX compiler is fully functional!');
+      setShowKeySettings(true);
+      setAssessmentError('Please enter or configure a Gemini API key above to use AI Assessment.');
       return;
     }
 
@@ -330,7 +334,7 @@ ${texContent}
       setAssessmentResult(result);
     } catch (err: any) {
       if (err.name === 'TypeError' && err.message.includes('fetch')) {
-        setAssessmentError('Network error - internet connection check karo.');
+        setAssessmentError('Network error - Please chaeck the intetnet connection.');
       } else {
         setAssessmentError(err.message);
       }
@@ -404,11 +408,13 @@ ${jdText}`;
 
       // Step 2: AI se qualitative suggestions (optional - sirf agar API key hai)
       if (apiKey.trim()) {
+        const matchedList = matchData.exactMatches ? [...matchData.exactMatches, ...(matchData.semanticMatches || []).map((s: any) => s.skill)] : (matchData.matchedKeywords || []);
+        const missingList = matchData.missingSkills || matchData.missingKeywords || [];
         const prompt = `You are an expert resume consultant. Based on the keyword analysis below, provide 3-4 specific, actionable suggestions to improve the resume's match with the job description. RESPOND IN ENGLISH ONLY. Be concise.
 
 Match Percentage: ${matchData.matchPercentage}%
-Matched Keywords: ${matchData.matchedKeywords.join(', ')}
-Missing Keywords: ${matchData.missingKeywords.slice(0, 20).join(', ')}
+Matched Keywords: ${matchedList.join(', ')}
+Missing Keywords: ${missingList.slice(0, 20).join(', ')}
 
 For each suggestion, show the EXACT change to make in the LaTeX resume.
 
@@ -427,14 +433,15 @@ ${texContent.substring(0, 2000)}
     }
   };
 
-  // --- Feature 4: Ask Gemini (Doubts) ---
+  // --- Feature 4: Ask Gemini (Doubts / Chat) ---
   const handleAskGemini = async () => {
     if (!apiKey.trim()) {
-      setAskError('Demo Mode: AI features are disabled in this public deployment to prevent API abuse. The LaTeX compiler is fully functional!');
+      setShowKeySettings(true);
+      setAskError('Please enter or configure a Gemini API key above to chat with AI.');
       return;
     }
     if (!userQuestion.trim()) {
-      setAskError('Pehle apna doubt ya question type karo!');
+      setAskError('Please type your question or doubt first!');
       return;
     }
 
@@ -496,18 +503,19 @@ ${texContent.substring(0, 1500)}
             Download PDF
           </button>
 
-          {/* NEW: AI Assess Button - ye button AI panel open ya band karta hai */}
+          {/* AI Panel Toggle Button */}
           <button
             onClick={() => {
               setShowAiPanel(!showAiPanel);
             }}
-            className={`px-3 py-1 border rounded text-sm font-medium transition-colors ${
+            className={`px-3 py-1 border rounded text-sm font-medium transition-colors flex items-center gap-1.5 ${
               showAiPanel
                 ? 'bg-black text-white border-black'
                 : 'bg-white text-black border-gray-300 hover:bg-gray-100'
             }`}
           >
-            AI Tools
+            <span>✨</span>
+            <span>AI Tools & Chat</span>
           </button>
         </div>
       </header>
@@ -609,22 +617,107 @@ ${texContent.substring(0, 1500)}
             {/* Panel Header */}
             <div className="flex items-center justify-between px-4 py-2 border-b bg-gray-50">
               <div className="flex items-center gap-2">
-                <span className="font-bold text-gray-800 text-sm">AI Tools</span>
+                <span className="font-bold text-gray-800 text-sm">AI Tools & Chat</span>
+                {apiKey ? (
+                  <span className="text-[10px] bg-emerald-100 text-emerald-800 px-1.5 py-0.5 rounded font-medium">
+                    Active
+                  </span>
+                ) : (
+                  <span className="text-[10px] bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded font-medium">
+                    Key Needed
+                  </span>
+                )}
               </div>
-              <button
-                onClick={() => setShowAiPanel(false)}
-                className="text-gray-400 hover:text-gray-800 text-lg font-bold leading-none"
-              >
-                ×
-              </button>
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={() => {
+                    setShowKeySettings(!showKeySettings);
+                    setTempApiKey(customApiKey || apiKey);
+                  }}
+                  title="Configure Gemini API Key"
+                  className="text-xs text-gray-600 hover:text-black px-2 py-1 rounded hover:bg-gray-200 transition-colors flex items-center gap-1"
+                >
+                  ⚙️ Key
+                </button>
+                <button
+                  onClick={() => setShowAiPanel(false)}
+                  className="text-gray-400 hover:text-gray-800 text-lg font-bold leading-none p-1"
+                >
+                  ×
+                </button>
+              </div>
             </div>
+
+            {/* API Key Configuration Drawer */}
+            {(!apiKey || showKeySettings) && (
+              <div className="p-3 bg-amber-50 border-b border-amber-200 text-xs">
+                <div className="flex justify-between items-center mb-1">
+                  <span className="font-bold text-amber-900">Gemini API Key</span>
+                  {apiKey && (
+                    <button
+                      onClick={() => setShowKeySettings(false)}
+                      className="text-amber-700 hover:text-amber-900 text-xs underline"
+                    >
+                      Hide
+                    </button>
+                  )}
+                </div>
+                <p className="text-gray-600 text-[11px] mb-2">
+                  {apiKey
+                    ? 'Gemini API key is configured. You can update or replace it below:'
+                    : 'Enter your Gemini API key to activate AI chat, live suggestions, and JD matching:'}
+                </p>
+                <div className="flex gap-2">
+                  <input
+                    type="password"
+                    value={tempApiKey}
+                    onChange={(e) => setTempApiKey(e.target.value)}
+                    placeholder="AIzaSy... or API Key"
+                    className="flex-1 px-2 py-1 text-xs border rounded bg-white focus:outline-none focus:ring-1 focus:ring-black"
+                  />
+                  <button
+                    onClick={() => {
+                      if (tempApiKey.trim()) {
+                        localStorage.setItem('gemini_api_key', tempApiKey.trim());
+                        setCustomApiKey(tempApiKey.trim());
+                        setShowKeySettings(false);
+                      }
+                    }}
+                    className="px-3 py-1 bg-black text-white text-xs rounded hover:bg-gray-800 font-medium transition-colors"
+                  >
+                    Save
+                  </button>
+                  {customApiKey && (
+                    <button
+                      onClick={() => {
+                        localStorage.removeItem('gemini_api_key');
+                        setCustomApiKey('');
+                        setTempApiKey('');
+                      }}
+                      className="px-2 py-1 text-xs text-red-600 hover:bg-red-100 rounded transition-colors"
+                      title="Clear custom key"
+                    >
+                      Clear
+                    </button>
+                  )}
+                </div>
+                <a
+                  href="https://aistudio.google.com/app/apikey"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-block mt-2 text-[11px] text-blue-600 hover:underline"
+                >
+                  Get free API key from Google AI Studio →
+                </a>
+              </div>
+            )}
 
             {/* Tab Bar */}
             <div className="flex border-b bg-gray-50">
               {([
                 { id: 'assess' as const, label: 'Assess' },
                 { id: 'jdmatch' as const, label: 'JD Match' },
-                { id: 'ask' as const, label: 'Ask AI' },
+                { id: 'ask' as const, label: 'AI Chat' },
               ]).map((tab) => (
                 <button
                   key={tab.id}
@@ -784,15 +877,72 @@ ${texContent.substring(0, 1500)}
                           {jdMatchData.matchPercentage}%
                         </p>
                         <p className="text-xs text-gray-500 mt-1">
-                          Based on {jdMatchData.totalJdKeywords} keywords from JD
+                          Based on {jdMatchData.totalEvaluated ?? jdMatchData.totalJdKeywords ?? 0} skills evaluated
                         </p>
-                        <p className="text-[10px] text-gray-400 mt-0.5">
-                          Deterministic score — same input = same result, always
-                        </p>
+                        {jdMatchData.engine && (
+                          <div className="mt-2">
+                            <span className="text-[10px] bg-blue-50 text-blue-700 border border-blue-200 px-2 py-0.5 rounded-full font-medium inline-block">
+                              ⚡ {jdMatchData.engine}
+                            </span>
+                          </div>
+                        )}
                       </div>
 
-                      {/* Matched Keywords */}
-                      {jdMatchData.matchedKeywords.length > 0 && (
+                      {/* Exact Matches (Regex) */}
+                      {jdMatchData.exactMatches && jdMatchData.exactMatches.length > 0 && (
+                        <div className="bg-emerald-50 border border-emerald-200 rounded p-3">
+                          <p className="text-xs font-bold text-emerald-800 mb-2 flex items-center justify-between">
+                            <span>Exact Matches ({jdMatchData.exactMatches.length})</span>
+                            <span className="text-[9px] font-normal text-emerald-600 bg-emerald-100 px-1.5 py-0.5 rounded">Lexical Regex</span>
+                          </p>
+                          <div className="flex flex-wrap gap-1">
+                            {jdMatchData.exactMatches.map((kw: string) => (
+                              <span key={kw} className="px-2 py-0.5 bg-emerald-100 text-emerald-800 border border-emerald-300 rounded-full text-[10px] font-medium">
+                                ✓ {kw}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Semantic Matches (MiniLM-L6-v2) */}
+                      {jdMatchData.semanticMatches && jdMatchData.semanticMatches.length > 0 && (
+                        <div className="bg-purple-50 border border-purple-200 rounded p-3">
+                          <p className="text-xs font-bold text-purple-800 mb-2 flex items-center justify-between">
+                            <span>Semantic Matches ({jdMatchData.semanticMatches.length})</span>
+                            <span className="text-[9px] font-normal text-purple-600 bg-purple-100 px-1.5 py-0.5 rounded">MiniLM-L6-v2</span>
+                          </p>
+                          <div className="flex flex-wrap gap-1.5">
+                            {jdMatchData.semanticMatches.map((item: any) => (
+                              <span key={item.skill} className="px-2 py-0.5 bg-purple-100 text-purple-900 border border-purple-300 rounded-full text-[10px] font-medium flex items-center gap-1">
+                                <span>✦ {item.skill}</span>
+                                <span className="bg-purple-200 text-purple-800 px-1 rounded text-[9px] font-bold">
+                                  {item.confidence}%
+                                </span>
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Missing Skills */}
+                      {((jdMatchData.missingSkills && jdMatchData.missingSkills.length > 0) || (jdMatchData.missingKeywords && jdMatchData.missingKeywords.length > 0)) && (
+                        <div className="bg-red-50 border border-red-200 rounded p-3">
+                          <p className="text-xs font-bold text-red-700 mb-2">
+                            Missing Skills ({(jdMatchData.missingSkills || jdMatchData.missingKeywords).length})
+                          </p>
+                          <div className="flex flex-wrap gap-1">
+                            {(jdMatchData.missingSkills || jdMatchData.missingKeywords).slice(0, 30).map((kw: string) => (
+                              <span key={kw} className="px-2 py-0.5 bg-red-100 text-red-800 border border-red-200 rounded-full text-[10px] font-medium">
+                                ✕ {kw}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Legacy Matched Keywords fallback */}
+                      {!jdMatchData.exactMatches && !jdMatchData.semanticMatches && jdMatchData.matchedKeywords && jdMatchData.matchedKeywords.length > 0 && (
                         <div className="bg-gray-50 border border-gray-200 rounded p-3">
                           <p className="text-xs font-bold text-gray-800 mb-2">
                             Matched Keywords ({jdMatchData.matchedKeywords.length})
@@ -800,22 +950,6 @@ ${texContent.substring(0, 1500)}
                           <div className="flex flex-wrap gap-1">
                             {jdMatchData.matchedKeywords.map((kw: string) => (
                               <span key={kw} className="px-2 py-0.5 bg-gray-200 text-gray-800 rounded-full text-[10px] font-medium">
-                                {kw}
-                              </span>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Missing Keywords */}
-                      {jdMatchData.missingKeywords.length > 0 && (
-                        <div className="bg-red-50 border border-red-200 rounded p-3">
-                          <p className="text-xs font-bold text-red-700 mb-2">
-                            Missing Keywords ({jdMatchData.missingKeywords.length})
-                          </p>
-                          <div className="flex flex-wrap gap-1">
-                            {jdMatchData.missingKeywords.slice(0, 30).map((kw: string) => (
-                              <span key={kw} className="px-2 py-0.5 bg-red-100 text-red-800 rounded-full text-[10px] font-medium">
                                 {kw}
                               </span>
                             ))}

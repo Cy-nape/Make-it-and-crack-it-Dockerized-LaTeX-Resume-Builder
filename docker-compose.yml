@@ -7,9 +7,9 @@ services:
       PORT: 3001
     expose:
       - "3001"
+    volumes:
+      - ./backend:/app
     healthcheck:
-      # curl se health check karo - ye Python image mein available hai (Dockerfile mein install kiya tha)
-      # Node.js is Python image mein nahi hota isliye pehle wala fail ho raha tha
       test: ["CMD", "curl", "-f", "http://127.0.0.1:3001/health"]
       interval: 15s
       timeout: 5s
@@ -20,6 +20,9 @@ services:
   frontend:
     build:
       context: ./frontend
+      args:
+        VITE_API_URL: ""
+        VITE_GEMINI_API_KEY: "${VITE_GEMINI_API_KEY:-AQ.Ab8RN6KhsRygy4Kvy7fcALktfomET2FXVirBikfmwVmf_EPj7Q}"
     ports:
       - "8080:80"
     depends_on:

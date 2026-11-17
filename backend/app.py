@@ -3,18 +3,32 @@ import tempfile
 import subprocess
 import shutil
 import uuid
+import re
 from flask import Flask, request, jsonify, send_file
 from flask_cors import CORS
 
-# Yaha Flask app banana shuru kiya aur CORS enable kiya taaki
-# frontend (React) backend se baat kar sake bina kisi error ke
+# --- ML Model Import ---
+from sentence_transformers import SentenceTransformer, util
+
+# Yaha Flask app banana shuru kiya aur CORS enable kiya
 app = Flask(__name__)
 CORS(app)
+
+# Model ko app startup par ek baar load karo (~80MB RAM lega)
+MODEL_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'finetuned-resume-model')
+if os.path.exists(MODEL_DIR):
+    print(f"Loading custom fine-tuned model from {MODEL_DIR}...")
+    semantic_model = SentenceTransformer(MODEL_DIR)
+    ENGINE_NAME = "Hybrid (Lexical Regex + Fine-Tuned MiniLM Embeddings)"
+else:
+    print("Fine-tuned model directory not found, loading 'all-MiniLM-L6-v2'...")
+    semantic_model = SentenceTransformer('all-MiniLM-L6-v2')
+    ENGINE_NAME = "Hybrid (Lexical Regex + MiniLM-L6-v2 Semantic Embeddings)"
+print("Model loaded successfully!")
 
 
 # ---------------------------------------------------------------
 # Health Check Endpoint
-# Ye sirf ye check karne ke liye hai ki backend server chal raha hai ya nahi
 # ---------------------------------------------------------------
 @app.route('/health', methods=['GET'])
 def health():
@@ -26,25 +40,19 @@ def health():
 
 
 # ---------------------------------------------------------------
-# LaTeX Compilation Endpoint
-# User ka LaTeX code leke PDF bana deta hai aur wapas bhej deta hai
+# LaTeX Compilation Endpoint (Unchanged)
 # ---------------------------------------------------------------
 @app.route('/api/latex/compile', methods=['POST'])
 def compile_latex():
-    # Frontend se JSON data liya - usme 'texContent' hona chahiye
     data = request.get_json()
     if not data or 'texContent' not in data:
         return jsonify({"error": "LaTeX content is required"}), 400
 
     tex_content = data['texContent']
-
-    # Har request ke liye ek alag unique temporary folder banaya
-    # Taaki ek user ka kaam dusre se mix na ho
     unique_id = uuid.uuid4().hex
     temp_dir = os.path.join(tempfile.gettempdir(), f"latex_{unique_id}")
 
     try:
-        # Temporary folder create kiya aur usme .tex file likhi
         os.makedirs(temp_dir, exist_ok=True)
         tex_file_path = os.path.join(temp_dir, 'main.tex')
         pdf_file_path = os.path.join(temp_dir, 'main.pdf')
@@ -52,10 +60,6 @@ def compile_latex():
         with open(tex_file_path, 'w', encoding='utf-8') as f:
             f.write(tex_content)
 
-        # pdflatex command run kiya - ye LaTeX ko PDF me convert karta hai
-        # -no-shell-escape: security ke liye, dangerous commands band
-        # -interaction=nonstopmode: bina ruke compile kare
-        # -halt-on-error: pehli galti pe ruk jaaye
         command = [
             "pdflatex",
             "-no-shell-escape",
@@ -66,7 +70,6 @@ def compile_latex():
         ]
 
         try:
-            # 10 second ka time limit rakha - agar itne me na bane toh timeout
             result = subprocess.run(
                 command,
                 stdout=subprocess.PIPE,
@@ -75,7 +78,6 @@ def compile_latex():
                 text=True
             )
 
-            # Agar compilation fail ho gayi aur PDF bani hi nahi toh error bhejo
             if result.returncode != 0:
                 if not os.path.exists(pdf_file_path):
                     print('LaTeX compilation failed:', result.stdout)
@@ -85,7 +87,6 @@ def compile_latex():
                     }), 400
 
         except subprocess.TimeoutExpired as e:
-            # 10 second se zyada lag gaya - timeout error
             output = e.stdout.decode('utf-8') if e.stdout else "Timeout expired"
             return jsonify({
                 "error": "Compilation failed",
@@ -99,7 +100,6 @@ def compile_latex():
                     "log": str(e)
                 }), 400
 
-        # Agar PDF successfully bani hai toh use frontend ko bhej do
         if os.path.exists(pdf_file_path):
             return send_file(
                 pdf_file_path,
@@ -115,8 +115,6 @@ def compile_latex():
         return jsonify({"error": "Internal server error during compilation"}), 500
 
     finally:
-        # Kaam ho gaya ya na ho - temporary folder hamesha delete karo
-        # Ye important hai taaki server ki disk bhaari na ho
         try:
             if os.path.exists(temp_dir):
                 shutil.rmtree(temp_dir)
@@ -125,78 +123,52 @@ def compile_latex():
 
 
 # ---------------------------------------------------------------
-# NEW: Gemini AI Resume Assessment Endpoint
-# Yaha maine naya endpoint banaya jo Gemini AI se resume assess karata hai
-# Frontend se LaTeX code aur Gemini API key aati hai
-# Gemini usse padhta hai aur suggestions deta hai
+# Gemini AI Resume Assessment Endpoint (Unchanged)
 # ---------------------------------------------------------------
 @app.route('/api/ai/assess', methods=['POST'])
 def assess_resume():
-    # Step 1: Frontend se data lo - LaTeX code aur API key dono chahiye
     data = request.get_json()
-
     if not data:
         return jsonify({"error": "Request body khaali hai"}), 400
 
     tex_content = data.get('texContent', '').strip()
     api_key = data.get('apiKey', '').strip()
 
-    # Dono cheezein honi chahiye, warna error
     if not tex_content:
         return jsonify({"error": "LaTeX content required hai"}), 400
     if not api_key:
         return jsonify({"error": "Gemini API key required hai"}), 400
 
     try:
-        # Step 2: Google Generative AI library import karo
-        # Yaha import andar kiya taaki agar package nahi hai toh sirf
-        # ye endpoint fail ho, baaki app chal sakti rahe
         import google.generativeai as genai
-
-        # Step 3: User ki API key se Gemini configure karo
         genai.configure(api_key=api_key)
-
-        # Step 4: Gemini ka model choose kiya - gemini-1.5-flash fast aur free hai
         model = genai.GenerativeModel('gemini-1.5-flash')
 
-        # Step 5: Prompt banaya - ye AI ko batata hai ki kya karna hai
-        # Hum AI ko ek expert recruiter ki tarah behave karne bol rahe hain
         prompt = f"""
 Tu ek experienced technical recruiter aur resume expert hai.
 Neeche ek LaTeX resume ka code diya gaya hai.
 Isko padhke ek detailed assessment de jisme yeh sab ho:
 
-1.  **Overall Score**: Resume ko 10 mein se score de aur ek line mein reason bata.
-2.  **Strengths (Kya Achha Hai)**: 3 bullet points mein batao resume ki khoobiyan kya hain.
-3.  **Areas for Improvement (Kya Behtar Ho Sakta Hai)**: 3 bullet points mein batao kya improve karna chahiye (e.g., bullet points ki wording, skills section, action verbs ka use, impact quantification).
-4.  **Specific Suggestions (Specific Changes)**: 2-3 concrete examples do ki koi ek existing line ko kaisi behtar likha ja sakta tha.
-5.  **ATS Compatibility**: Kya ye resume Applicant Tracking Systems ke saath compatible lagta hai? Haan ya nahi aur kyun?
+1. **Overall Score**: Resume ko 10 mein se score de aur ek line mein reason bata.
+2. **Strengths (Kya Achha Hai)**: 3 bullet points mein batao resume ki khoobiyan kya hain.
+3. **Areas for Improvement (Kya Behtar Ho Sakta Hai)**: 3 bullet points mein batao kya improve karna chahiye.
+4. **Specific Suggestions (Specific Changes)**: 2-3 concrete examples do.
+5. **ATS Compatibility**: Kya ye resume ATS compatible lagta hai?
 
-Apna jawab clear headings ke saath do. LaTeX code yahan hai:
-
+LaTeX code yahan hai:
 ---
 {tex_content}
 ---
 """
-
-        # Step 6: Gemini API ko call karo aur response lo
-        # Ye actual AI call hai - Gemini yahan sochta hai aur jawab deta hai
         response = model.generate_content(prompt)
-
-        # Step 7: Gemini ka response nikaala aur frontend ko bhej diya
-        assessment_text = response.text
-
         return jsonify({
             "success": True,
-            "assessment": assessment_text
+            "assessment": response.text
         })
 
     except Exception as e:
-        # Koi bhi error aaye - API key galat ho, network issue ho - yahan pakad lenge
         error_message = str(e)
         print(f"Gemini API error: {error_message}")
-
-        # User-friendly error message dete hain
         if "API_KEY_INVALID" in error_message or "api_key" in error_message.lower():
             return jsonify({"error": "Gemini API key galat hai. Please check karein."}), 401
         elif "quota" in error_message.lower():
@@ -206,12 +178,8 @@ Apna jawab clear headings ke saath do. LaTeX code yahan hai:
 
 
 # ---------------------------------------------------------------
-# JD Matching Endpoint (Deterministic - No AI)
-# Resume aur Job Description ke beech keyword matching karta hai
-# Score 100% reproducible hai - har baar same input pe same output
+# Helper Functions for Text Extraction
 # ---------------------------------------------------------------
-
-# Common English stop words jo matching mein ignore honge
 STOP_WORDS = {
     'a', 'an', 'the', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for',
     'of', 'with', 'by', 'is', 'are', 'was', 'were', 'be', 'been', 'being',
@@ -234,58 +202,30 @@ STOP_WORDS = {
     'minimum', 'plus', 'bonus', 'salary', 'benefits', 'apply', 'equal',
 }
 
-import re
-
 def strip_latex(tex_content):
     """LaTeX commands hata ke plain text nikalta hai safely"""
     text = tex_content
-    # LaTeX comments hatao
     text = re.sub(r'%.*$', '', text, flags=re.MULTILINE)
-    # 1. Structural commands with their arguments
     text = re.sub(r'\\(?:documentclass|usepackage|begin|end|pagestyle|setlength|renewcommand|fancyhf|fancyfoot|thispagestyle|addtolength|urlstyle|titleformat)\*?(?:\[[^\]]*\])?(?:\{[^}]*\})*', '', text)
-    # 2. Spacing/alignment commands (no args)
     text = re.sub(r'\\(?:hfill|hspace|vspace|newline|newpage|clearpage|noindent|centering|raggedright|raggedleft|raggedbottom)\b', '', text)
-    # 3. Any other backslash command without its arguments
     text = re.sub(r'\\[a-zA-Z]+\*?', '', text)
-    # 4. Remove all curly braces and special chars
     text = re.sub(r'[{}\\~\^\|\$]', ' ', text)
-    # 5. Normalize whitespace
     text = re.sub(r'\s+', ' ', text)
     return text.strip()
 
-
-def extract_keywords(text):
-    """Text se meaningful keywords nikalta hai (stop words filter karke)"""
-    # Lowercase aur clean karo
-    text = text.lower()
-    # Sirf alphanumeric aur spaces rakho, baaki hatao
-    text = re.sub(r'[^a-z0-9\s\+\#\.]', ' ', text)
-    # Words nikalo aur trailing dots hatao (jaise "experience." -> "experience")
-    words = [w.rstrip('.') for w in text.split()]
-    # Stop words filter karo aur 2 character se chhote words hatao
-    keywords = {w for w in words if w not in STOP_WORDS and len(w) > 1}
-    return keywords
+def extract_resume_sentences(resume_text):
+    """Resume text ko meaningful sentences/chunks me baant-ta hai embeddings ke liye"""
+    # Newlines, bullets, and periods par split karo
+    raw_chunks = re.split(r'[\n\r\•\-\–]|\.\s+', resume_text)
+    # Chote khali pieces hatao
+    sentences = [s.strip() for s in raw_chunks if len(s.strip()) > 5]
+    # Agar kuch na bache toh poora text as single chunk use karo
+    return sentences if sentences else [resume_text]
 
 
-def extract_phrases(text):
-    """Common 2-3 word tech phrases nikalta hai (e.g., 'machine learning')"""
-    text = text.lower()
-    text = re.sub(r'[^a-z0-9\s\+\#\.]', ' ', text)
-    words = [w.rstrip('.') for w in text.split()]
-    phrases = set()
-    # 2-word phrases
-    for i in range(len(words) - 1):
-        phrase = f"{words[i]} {words[i+1]}"
-        if words[i] not in STOP_WORDS and words[i+1] not in STOP_WORDS:
-            phrases.add(phrase)
-    # 3-word phrases
-    for i in range(len(words) - 2):
-        phrase = f"{words[i]} {words[i+1]} {words[i+2]}"
-        if words[i] not in STOP_WORDS and words[i+2] not in STOP_WORDS:
-            phrases.add(phrase)
-    return phrases
-
-
+# ---------------------------------------------------------------
+# UPGRADED: JD Matching Endpoint (Hybrid: Keyword + Semantic Model)
+# ---------------------------------------------------------------
 @app.route('/api/jd/match', methods=['POST'])
 def match_jd():
     data = request.get_json()
@@ -294,81 +234,93 @@ def match_jd():
 
     tex_content = data.get('texContent', '').strip()
     jd_text = data.get('jdText', '').strip()
-    skills_list = data.get('skills', [])  # Frontend se explicitly extracted skills aayenge
+    skills_list = data.get('skills', [])
 
     if not tex_content:
         return jsonify({"error": "Resume content required hai"}), 400
     if not jd_text and not skills_list:
         return jsonify({"error": "Job description or skills required hai"}), 400
 
-    # Step 1: LaTeX se plain text nikalo aur lowercase karo
     resume_text = strip_latex(tex_content).lower()
+    resume_chunks = extract_resume_sentences(resume_text)
 
-    if skills_list and isinstance(skills_list, list):
-        # AI se extract kiye gaye skills ka direct matching
-        matched_keywords = []
-        missing_keywords = []
+    # Agar frontend se explicit skills aayi hain
+    target_skills = skills_list if (skills_list and isinstance(skills_list, list)) else []
+    
+    # Agar frontend se skills list nahi aayi, toh JD text se extract karo
+    if not target_skills and jd_text:
+        raw_words = re.sub(r'[^a-z0-9\s\+\#\.]', ' ', jd_text.lower()).split()
+        target_skills = list({w for w in raw_words if w not in STOP_WORDS and len(w) > 2})
+
+    if not target_skills:
+        return jsonify({"error": "No evaluatable skills found"}), 400
+
+    # 1. Step: Exact keyword check pehle karo
+    matched_exact = set()
+    unmatched_skills = []
+
+    for skill in target_skills:
+        skill_clean = str(skill).strip().lower()
+        if not skill_clean: 
+            continue
         
-        for skill in skills_list:
-            skill_clean = str(skill).strip().lower()
-            if not skill_clean: continue
-            
-            # Word boundary check taaki "react" -> "reactor" me na match ho
-            pattern = r'\b' + re.escape(skill_clean) + r'\b'
-            
-            # C++ aur C# jaise exceptions ke liye (unme word boundary \b alag behave karta hai)
-            if skill_clean in ['c++', 'c#', '.net']:
-                if skill_clean in resume_text:
-                    matched_keywords.append(skill_clean)
-                else:
-                    missing_keywords.append(skill_clean)
-            elif re.search(pattern, resume_text):
-                matched_keywords.append(skill_clean)
+        pattern = r'\b' + re.escape(skill_clean) + r'\b'
+        if skill_clean in ['c++', 'c#', '.net']:
+            if skill_clean in resume_text:
+                matched_exact.add(skill_clean)
             else:
-                missing_keywords.append(skill_clean)
+                unmatched_skills.append(skill_clean)
+        elif re.search(pattern, resume_text):
+            matched_exact.add(skill_clean)
+        else:
+            unmatched_skills.append(skill_clean)
 
-        total_skills = len(matched_keywords) + len(missing_keywords)
-        match_percentage = 0 if total_skills == 0 else round((len(matched_keywords) / total_skills) * 100, 1)
-        
-        return jsonify({
-            "success": True,
-            "matchPercentage": match_percentage,
-            "totalJdKeywords": total_skills,
-            "matchedKeywords": sorted(matched_keywords),
-            "missingKeywords": sorted(missing_keywords),
-            "matchedPhrases": [], # Skip for explicit skills
-            "resumeTextPreview": resume_text[:300]
-        })
+    # 2. Step: Jo direct match nahi hue, unpe MiniLM Semantic Model chalao
+    # (Yeh 'relational database' vs 'PostgreSQL' jaise synonyms pakdega)
+    matched_semantic = []
+    missing_final = []
+
+    if unmatched_skills and resume_chunks:
+        skill_embeddings = semantic_model.encode(unmatched_skills, convert_to_tensor=True)
+        resume_embeddings = semantic_model.encode(resume_chunks, convert_to_tensor=True)
+        sim_matrix = util.cos_sim(skill_embeddings, resume_embeddings)
+
+        SEMANTIC_THRESHOLD = 0.45  # 58% similarity threshold
+
+        for idx, skill in enumerate(unmatched_skills):
+            best_score = sim_matrix[idx].max().item()
+            print(f"Debug: Skill '{skill}' ka best similarity score = {best_score:.4f}")
+            if best_score >= SEMANTIC_THRESHOLD:
+                matched_semantic.append({
+                    "skill": skill,
+                    "confidence": round(best_score * 100, 1)
+                })
+            else:
+                missing_final.append(skill)
     else:
-        # Fallback: Agar AI extraction fail ho jaye toh purana logic chalega
-        jd_keywords = extract_keywords(jd_text)
-        resume_keywords = extract_keywords(resume_text)
-        jd_phrases = extract_phrases(jd_text)
-        resume_phrases = extract_phrases(resume_text)
+        missing_final = unmatched_skills
 
-        matched_keywords = jd_keywords & resume_keywords
-        missing_keywords = jd_keywords - resume_keywords
-        matched_phrases = jd_phrases & resume_phrases
+    total_evaluated = len(matched_exact) + len(matched_semantic) + len(missing_final)
+    total_matched = len(matched_exact) + len(matched_semantic)
+    match_percentage = 0 if total_evaluated == 0 else round((total_matched / total_evaluated) * 100, 1)
 
-        total_jd_terms = len(jd_keywords) + len(jd_phrases)
-        total_matched = len(matched_keywords) + len(matched_phrases)
-        match_percentage = 0 if total_jd_terms == 0 else min(round((total_matched / total_jd_terms) * 100, 1), 100)
-
-        return jsonify({
-            "success": True,
-            "matchPercentage": match_percentage,
-            "totalJdKeywords": len(jd_keywords),
-            "matchedKeywords": sorted(list(matched_keywords)),
-            "missingKeywords": sorted(list(missing_keywords)),
-            "matchedPhrases": sorted(list(matched_phrases)),
-            "resumeTextPreview": resume_text[:300]
-        })
+    return jsonify({
+        "success": True,
+        "matchPercentage": match_percentage,
+        "totalEvaluated": total_evaluated,
+        "exactMatches": sorted(list(matched_exact)),
+        "semanticMatches": matched_semantic,
+        "missingSkills": sorted(missing_final),
+        "engine": ENGINE_NAME,
+        # Backward-compatibility aliases
+        "matchedKeywords": sorted(list(matched_exact)) + [s["skill"] for s in matched_semantic],
+        "missingKeywords": sorted(missing_final),
+        "totalJdKeywords": total_evaluated
+    })
 
 
 # ---------------------------------------------------------------
-# App ka main entry point
-# Ye tab chalega jab seedha python app.py se run karo
-# Docker mein gunicorn use karta hai
+# Entry Point
 # ---------------------------------------------------------------
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 3001))

@@ -27,6 +27,9 @@ ENV PATH="/opt/venv/bin:$PATH"
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
+# Bake the model into the image during build time
+RUN python -c "from sentence_transformers import SentenceTransformer; SentenceTransformer('all-MiniLM-L6-v2')"
+
 # --- Dev Stage ---
 FROM base AS dev
 WORKDIR /app
@@ -43,12 +46,13 @@ CMD ["flask", "run", "--host=0.0.0.0", "--port=3001", "--debug"]
 FROM base AS runtime
 WORKDIR /app
 
-# Copy application code
-COPY app.py .
+# Copy application code and fine-tuned model
+COPY --chown=app:app app.py .
+COPY --chown=app:app finetuned-resume-model/ ./finetuned-resume-model/
 
 # Switch to non-root user
 USER app
 
 # Render sets the PORT environment variable dynamically. 
 # We use sh -c to expand it, or default to 3001 if it's not set.
-CMD sh -c "gunicorn --bind 0.0.0.0:${PORT:-3001} --workers 2 --timeout 30 app:app"
+CMD sh -c "gunicorn --bind 0.0.0.0:${PORT:-3001} --workers 2 --timeout 120 --reload app:app"
